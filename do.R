@@ -1,3 +1,5 @@
+source('functions.R')
+
 prior <- function(){
   u <- runif(1)
   theta <- 20*u-10
