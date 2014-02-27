@@ -38,6 +38,7 @@ ggplot(data = results$ip, aes(V1,V2)) + geom_point(aes(color = loglik))
 require(signal)
 require(chebpol)
 require(mvtnorm)
+require(ggplot2)
 
 
 # Voy a utilizar los datos de siempre para obtener la descomposición de la curva
@@ -52,7 +53,7 @@ lambdas <- lambdas/ 0.5
 lambdas <- lambdas - 1
 
 # Defino una grid de chebyshev entre -1 y 1 con 8 puntos
-lambdas.out<-chebknots(8)
+lambdas.out<-chebknots(4)
 
 # Obtengo los valores de la curva principal en esa grid de chebyshev
 method="spline"
@@ -64,7 +65,7 @@ s<-cbind(
   interp1(lambdas,pc$s[,5],xi=lambdas.out[[1]],method,extrap=TRUE,'natural')
 )
 
-coef <- matrix(NA,nrow=5,8)
+coef <- matrix(NA,nrow=5,4)
 
 # Ahora, para cada variable, descompongo la curva en la base de chebyshev
 for (i in 1:5)
@@ -72,42 +73,70 @@ for (i in 1:5)
   k <- chebcoef(s[,i])
   coef[i,] <- k
   tch <- Vectorize(function(x) chebeval(x,k))
-  
-  # Por si quieres representar el ajuste 
-  # plot(lambdas,pc$s[,i],ty="p",pch=16,cex=.3)
-  # tmp <- sort(lambdas)
-  # lines(tmp,col="orange",lw=2)
 }
 
 # observed lambdas and estimated y with chebyshev polynomials
 
 tmp <- sort(lambdas)
-lsb.beta <- chebcoef(s[,1])
+lsb.beta <- chebcoef(s[,5])
 tch2 <- Vectorize(function(x) chebeval(x,lsb.beta))
 estim.y <- tch2(tmp)
 
+rdirichlet <- function(a) {
+  y <- rgamma(length(a), a, 1)
+  return(y / sum(y))
+}
+
+
+hyperprior3 <- function(){
+  a <- c(1,1)
+  theta.d <- rdirichlet(a)
+  # zn <- sample(c(0,1),size=1,prob=theta.d)
+  zn <- 1
+  return(c(zn, theta.d))
+}
 
 prior3 <- function() {
-  theta <- array(rmvnorm(1, mean = coef[1,]))
+  rhyp <- hyperprior3()
+  if(rhyp[1]==0){
+    prop.mix <- rdirichlet(a =  c(1,1,1))
+    theta <- c(prop.mix, rhyp)
+  }else{
+    beta <- rmvnorm(1, mean = coef[5,])
+    theta <- c(rhyp, beta)
+  }
+  
   return(theta)
 }
 
 loglikelihood3 <- function(theta){
-  theta <- array(theta)
-  tch1 <- Vectorize(function(x) chebeval(x,theta))
-  true.y <- tch1(tmp)
-  loglik <- mahalanobis(true.y, center = estim.y, cov = diag(length(estim.y)))
-  return(loglik)
+  zn <- theta[1]
+  theta <- array(theta[-c(1, 2, 3)])
+  if(zn == 0){
+    loglik <- log() 
+  }else{
+    theta <- theta[-c(1,2,3)]
+    theta <- array(theta)
+    tch1 <- Vectorize(function(x) chebeval(x,theta))
+    true.y <- tch1(tmp)
+    loglik <- mahalanobis(true.y, center = estim.y, cov = diag(length(estim.y)))
+    return(loglik)  
+  }
 }
 
 results <- NestedSampling(prior = prior3, loglikelihood = loglikelihood3,
-                          dim.par = 8, M = 100, N = 100)
+                          dim.par = 7, M = 200, N = 500)
 
+# Para representar el ajuste i = 5, por ejemplo
+i = 5
+plot(lambdas,pc$s[,i],ty="p",pch=16,cex=.3)
+tmp <- sort(lambdas)
 
-ggplot(data = results$no$S, aes(V1)) + geom_histogram()
-ggplot(data = results$no$S, aes(V2)) + geom_histogram()
-ggplot(data = results$no$S, aes(V3)) + geom_histogram()
+samples <- rbind(results$no$S, results$ip)
+samples.mean <- colMeans(samples)
+estim.beta <- as.array(samples.mean[4:7])
 
-
-
+tch2 <- Vectorize(function(x) chebeval(x,estim.beta))
+tmp2 <- tch2(tmp)
+lines(tmp,tmp2,col="orange",lw=2)
 
