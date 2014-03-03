@@ -1,7 +1,15 @@
+require(reshape2)
+require(ggplot2)
+require(plyr)
+require(signal)
+require(chebpol)
+require(mvtnorm)
+
+
+
 NestedSampling <- function(prior, loglikelihood, dim.par = 3, M = 100, N = 100){
 
   # Functions required
-  require(plyr)
     
   # Creating the first bunch of alive points
   S <- matrix(NA, N, dim.par)

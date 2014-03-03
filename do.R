@@ -17,8 +17,6 @@ results <- NestedSampling(prior = prior, loglikelihood = loglikelihood,
 prior2 <- function() qunif(runif(2),min=0,max=10*pi)
 loglikelihood2 <- function(theta)  (2+cos(theta[1]/2)*cos(theta[2]/2))^5
 
-library(reshape2)
-library(ggplot2)
 pp <- function (n,r=10) {
   x <- seq(0, r*pi, len=n)
   df <- expand.grid(x=x, y=x)
@@ -34,11 +32,6 @@ results <- NestedSampling(prior = prior2, loglikelihood = loglikelihood2,
 
 ggplot(data = results$no$S, aes(V1,V2)) + geom_point(aes(color = loglik))
 ggplot(data = results$ip, aes(V1,V2)) + geom_point(aes(color = loglik))
-
-require(signal)
-require(chebpol)
-require(mvtnorm)
-require(ggplot2)
 
 
 # Voy a utilizar los datos de siempre para obtener la descomposición de la curva
